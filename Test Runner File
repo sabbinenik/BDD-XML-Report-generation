@@ -1,0 +1,248 @@
+package test.automation.framework;
+
+import java.io.File;
+import java.io.IOException;
+import java.text.Format;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.TransformerFactoryConfigurationError;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.apache.commons.io.FileUtils;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.w3c.dom.Attr;
+import org.w3c.dom.CharacterData;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
+import cucumber.api.CucumberOptions;
+import cucumber.api.junit.Cucumber; 
+
+@RunWith(Cucumber.class)
+@CucumberOptions(features = "src/main/resources/test/automation/features/zoho", 
+glue = { "classpath:test/automation/steps/zoho","test/automation/framework" }, 
+tags = "@zoho001,@zoho002,@zoho003",
+plugin = { "pretty", "junit:target/reports/Junitreport.xml","html:target/reports/htmlreport"
+}, 	
+dryRun = false, 
+monochrome = true
+		)
+public class JunitRunner extends Page{
+	@BeforeClass
+	public static void setup() throws IOException {
+		System.out.println("------Stated-------");
+		File folder = new File("E:/Automation/EPlanningPOC-master/target/reports/");
+		  for (File file : folder.listFiles()) {
+		   if (file.getName().endsWith(".xml")) {
+		    file.delete();
+		   }
+		  }
+		//File file = new File("E:/Automation/EPlanningPOC-master/target/JunitReports/");
+		//FileUtils.deleteDirectory(file);
+	}
+
+	@AfterClass
+	public static void teardown() throws TransformerConfigurationException, TransformerFactoryConfigurationError, TransformerException {
+		System.out.println("XML Report file is updating.....");
+		String filePath = "E:/Automation/EPlanningPOC-master/target/reports/Junitreport.xml";
+		File xmlFile = new File(filePath);
+		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder dBuilder;
+		try {
+			dBuilder = dbFactory.newDocumentBuilder();
+
+			// parse xml file and load into document
+			Document doc = dBuilder.parse(xmlFile);
+			doc.getDocumentElement().normalize();
+			NodeList users1 = doc.getElementsByTagName("failure");
+			NodeList users = doc.getElementsByTagName("testsuite");
+			NodeList users2 = doc.getElementsByTagName("testcase");
+			NodeList users3 = doc.getElementsByTagName("system-out");
+
+			Element user = null;
+			Attr att=null;
+			// loop for each user
+			int skipCount = 0;
+			for (int i = 0; i < users1.getLength(); i++) {
+				user = (Element) users1.item(i);
+				if(user.getAttribute("message").contains("Previous scenario failed")) {
+					skipCount++;
+				}
+			}
+			for (int i = 0; i < users.getLength(); i++) {
+				user = (Element) users.item(i);
+				int count1 = Integer.parseInt(user.getAttribute("failures"));
+				int failed = (count1-skipCount);
+				int count = Integer.parseInt(user.getAttribute("tests"));
+				int passed = count-(failed+skipCount);
+				if(passed<0) {
+					passed = 0;
+				}
+				if(failed<0) {
+					failed = 0;
+				}
+				user.setAttribute("name", "Zoho Application Junit/XML Report");	
+				user.setAttribute("passed",Integer.toString(passed));
+				user.setAttribute("failed", Integer.toString(failed));	
+				user.setAttribute("skipped", Integer.toString(skipCount));	
+				user.removeAttribute("failures");	
+			}
+			
+			int testcase_skipCount = 0;
+			int testcase_passedCount = 0;
+			int testcase_failedCount = 0;
+			for (int i = 0; i < users3.getLength(); i++) {
+				user = (Element) users3.item(i);
+				if(user.getAttribute("message").contains("Previous scenario failed")) {
+					skipCount++;
+				}
+			}
+			testCaseSteps(doc);
+			for (int i = 0; i < users1.getLength(); i++) {
+				user = (Element) users1.item(i);
+				user.removeAttribute("message");			
+			}
+			writeXMLFile(doc);
+		} catch (SAXException | ParserConfigurationException | IOException e1) {
+			e1.printStackTrace();
+		}
+	}
+	private static void writeXMLFile(Document doc)
+			throws TransformerFactoryConfigurationError, TransformerConfigurationException, TransformerException {
+		doc.getDocumentElement().normalize();
+		TransformerFactory transformerFactory = TransformerFactory.newInstance();
+		Transformer transformer = transformerFactory.newTransformer();
+		DOMSource source = new DOMSource(doc);
+		Date date = new Date();
+		Format formatter = new SimpleDateFormat("YYYY-MM-dd_hh-mm-ss");
+		StreamResult result = new StreamResult(new File("E:/Automation/EPlanningPOC-master/target/reports/Junitreport" + formatter.format(date) +".xml"));
+		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+		transformer.transform(source, result);
+		System.out.println("XML Report file updated successfully");
+	}
+	public static void testCaseSteps(Document doc) {
+		NodeList users1 = doc.getElementsByTagName("failure");
+		NodeList users = doc.getElementsByTagName("testsuite");
+		NodeList users2 = doc.getElementsByTagName("testcase");
+		NodeList users3 = doc.getElementsByTagName("system-out");
+
+		Element user = null;
+		Element usr = null;
+		Attr att=null;
+
+		int testcase_skipCount = 0;
+		int testcase_passedCount = 0;
+		int testcase_failedCount = 0;
+
+
+		for (int i = 0; i < users2.getLength(); i++) {		
+			user = (Element) users2.item(i);
+			//usr = (Element) users2.item(i);
+			try {
+				NodeList title = user.getElementsByTagName("system-out");
+				Element line = (Element) title.item(0);
+				System.out.println(line);
+				String Data = getCharacterDataFromElement(line);
+				System.out.println(Data);
+				String[] words=Data.split(" ");
+				for(int k=0;k<words.length;k++) //Outer loop for Comparison       
+				{
+					for(int j=i+1;j<words.length;j++) //Inner loop for Comparison
+					{
+
+						if(words[k].equals(words[j]))  //Checking for both strings are equal
+						{
+							if( words[j].contains("..passed")) {
+								testcase_passedCount=testcase_passedCount+1;    //if equal increment the count
+								words[j]="0"; //Replace repeated words by zero					      }
+							}
+							if( words[j].contains("..failed")) {
+								testcase_failedCount=testcase_failedCount+1;    //if equal increment the count
+								words[j]="0"; //Replace repeated words by zero					      }
+							}
+							if( words[j].contains("..skipped")) {
+								testcase_skipCount=testcase_skipCount+1;    //if equal increment the count
+								words[j]="0"; //Replace repeated words by zero					      }
+							}
+
+						}
+					}
+				}
+				user.setAttribute("passed",Integer.toString(testcase_passedCount));
+				user.setAttribute("failed",Integer.toString(testcase_failedCount));
+				user.setAttribute("skipped",Integer.toString(testcase_skipCount));
+
+				
+			}catch(NullPointerException e) {
+				NodeList title = user.getElementsByTagName("failure");
+				Element line = (Element) title.item(0);
+				System.out.println(line);
+				String Data = getCharacterDataFromElement(line);
+				System.out.println(Data);
+				String[] words=Data.split(" ");
+				for(int k=0;k<words.length;k++) //Outer loop for Comparison       
+				{
+					for(int j=i+1;j<words.length;j++) //Inner loop for Comparison
+					{
+
+						if(words[k].equals(words[j]))  //Checking for both strings are equal
+						{
+							if( words[j].contains("..passed")) {
+								testcase_passedCount=testcase_passedCount+1;    //if equal increment the count
+								words[j]="0"; //Replace repeated words by zero					      }
+							}
+							if( words[j].contains("..failed")) {
+								testcase_failedCount=testcase_failedCount+1;    //if equal increment the count
+								words[j]="0"; //Replace repeated words by zero					      }
+							}
+							if( words[j].contains("..skipped")) {
+								testcase_skipCount=testcase_skipCount+1;    //if equal increment the count
+								words[j]="0"; //Replace repeated words by zero					      }
+							}
+
+						}
+					}
+				}
+				user.setAttribute("passed",Integer.toString(testcase_passedCount));
+				user.setAttribute("failed",Integer.toString(testcase_failedCount));
+				user.setAttribute("skipped",Integer.toString(testcase_skipCount));
+			}
+			testcase_passedCount=0;
+			testcase_failedCount=0;
+			testcase_skipCount=0;
+		}
+	}
+	
+	public static String getCharacterDataFromElement(Element e) {
+		NodeList list = e.getChildNodes();
+		String data;
+
+		for(int index = 0; index < list.getLength(); index++){
+			if(list.item(index) instanceof CharacterData){
+				CharacterData child = (CharacterData) list.item(index);
+				data = child.getData();
+				if(data != null && data.trim().length() > 0)
+					return child.getData();
+			}
+		}
+		return "";
+	}
+	
+
+
+
+}
